@@ -6,6 +6,8 @@ const passport = require("passport");
 const passportInit = require("./passport/passportInit");
 const secretWordRouter = require("./routes/secretWord");
 const auth = require("./middleware/auth");
+const cookieParser = require("cookie-parser");
+const csrf = require("host-csrf");
 
 const app = express();
 
@@ -39,6 +41,9 @@ if (app.get("env") === "production") {
 
 app.use(session(sessionParms));
 
+app.use(cookieParser(process.env.SESSION_SECRET));
+const csrfMiddleware = csrf.csrf();
+
 passportInit();
 app.use(passport.initialize());
 app.use(passport.session());
@@ -46,6 +51,18 @@ app.use(passport.session());
 app.use(require("connect-flash")());
 
 app.use(require("./middleware/storeLocals"));
+
+app.use((req, res, next) => {
+  try {
+    const token = csrf.getToken(req, res);
+    res.locals._csrf = token || "";
+  } catch (err) {
+    res.locals._csrf = "";
+  }
+  next();
+});
+app.use(csrfMiddleware);
+
 app.get("/", (req, res) => {
   res.render("index");
 });
